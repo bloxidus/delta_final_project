@@ -1,6 +1,6 @@
-// example_object_finder_action_client: 
-// wsn, April, 2016
-// illustrates use of object_finder action server called "objectFinderActionServer"
+// example_object_finder_action_client:
+// identifies the block / prism and sweep
+// delta team, December, 2016
 
 #include <ros/ros.h>
 #include <actionlib/client/simple_action_client.h>
@@ -67,9 +67,7 @@ void manipDoneCb(const actionlib::SimpleClientGoalState& state,
     switch (g_callback_status) {
         case coordinator::ManipTaskResult::MANIP_SUCCESS:
             ROS_INFO("returned MANIP_SUCCESS");
-
             break;
-
         case coordinator::ManipTaskResult::FAILED_PERCEPTION:
             ROS_WARN("returned FAILED_PERCEPTION");
             g_object_finder_return_code = result->object_finder_return_code;
@@ -82,7 +80,7 @@ void manipDoneCb(const actionlib::SimpleClientGoalState& state,
             break;
         case coordinator::ManipTaskResult::FAILED_DROPOFF:
             ROS_WARN("returned FAILED_DROPOFF");
-            //g_des_flange_pose_stamped_wrt_torso = result->des_flange_pose_stamped_wrt_torso;          
+            //g_des_flange_pose_stamped_wrt_torso = result->des_flange_pose_stamped_wrt_torso;
             break;
     }
 }
@@ -104,48 +102,43 @@ void manipActiveCb() {
 }
 
 int main(int argc, char** argv) {
-    ros::init(argc, argv, "example_object_finder_action_client"); // name this node 
-    ros::NodeHandle nh; //standard ros node handle    
-    
-    
+    ros::init(argc, argv, "example_object_finder_action_client"); // name this node
+    ros::NodeHandle nh; //standard ros node handle
+
+    // initiate an action client to find cube or toy block existing on the stool
     actionlib::SimpleActionClient<object_finder::objectFinderAction> object_finder_ac("object_finder_action_service", true);
-    
+
     // attempt to connect to the server:
     ROS_INFO("waiting for object finder server: ");
     bool server_exists = false;
     while ((!server_exists)&&(ros::ok())) {
-        server_exists = object_finder_ac.waitForServer(ros::Duration(0.5)); // 
+        server_exists = object_finder_ac.waitForServer(ros::Duration(0.5)); //
         ros::spinOnce();
         ros::Duration(0.5).sleep();
         ROS_INFO("retrying...");
     }
-    ROS_INFO("connected to object_finder action server"); // if here, then we connected to the server; 
-    ros::Publisher pose_publisher = nh.advertise<geometry_msgs::PoseStamped>("triad_display_pose", 1, true); 
+    ROS_INFO("connected to object_finder action server"); // if here, then we connected to the server;
+    ros::Publisher pose_publisher = nh.advertise<geometry_msgs::PoseStamped>("triad_display_pose", 1, true);
     g_pose_publisher = &pose_publisher;
     object_finder::objectFinderGoal object_finder_goal;
     //object_finder::objectFinderResult object_finder_result;
 
     object_finder_goal.object_id = ObjectIdCodes::TABLE_SURFACE;
-    object_finder_goal.known_surface_ht = false; //require find table height
-    //object_finder_goal.object_id=object_finder::objectFinderGoal::COKE_CAN_UPRIGHT;
-    //object_finder_goal.object_id=object_finder::objectFinderGoal::TOY_BLOCK;
-    //object_finder_goal.known_surface_ht=true;
-    //object_finder_goal.known_surface_ht=false; //require find table height
-    //object_finder_goal.surface_ht = 0.05;
+    object_finder_goal.known_surface_ht = false;
     double surface_height;
     ROS_INFO("sending goal: ");
-        object_finder_ac.sendGoal(object_finder_goal,&objectFinderDoneCb); 
-        
+        object_finder_ac.sendGoal(object_finder_goal,&objectFinderDoneCb);
+
         bool finished_before_timeout = object_finder_ac.waitForResult(ros::Duration(10.0));
         //bool finished_before_timeout = action_client.waitForResult(); // wait forever...
         if (!finished_before_timeout) {
             ROS_WARN("giving up waiting on result ");
             return 1;
         }
-        
+
     if (g_found_object_code == object_finder::objectFinderResult::OBJECT_FOUND) {
                         ROS_INFO("surface-finder success");
-                        surface_height = g_perceived_object_pose.pose.position.z; // table-top height, as found by object_finder 
+                        surface_height = g_perceived_object_pose.pose.position.z; // table-top height, as found by object_finder
                         ROS_INFO("found table ht = %f",surface_height);   }
     else {
         ROS_WARN("did not find table height; quitting:");
@@ -153,31 +146,30 @@ int main(int argc, char** argv) {
     }
 
 
-
-    //define sweep endpoint poses; 
+    //define sweep endpoint poses;
     //right sweep
     geometry_msgs::PoseStamped right_sweep_pose;
     right_sweep_pose.header.frame_id = "torso";
     right_sweep_pose.pose.position.x = 0.65;
-    right_sweep_pose.pose.position.y = -0.35; //-0.35;
+    right_sweep_pose.pose.position.y = -0.35;
     right_sweep_pose.pose.position.z = -0.3;
     right_sweep_pose.pose.orientation.x = 0.707;
     right_sweep_pose.pose.orientation.y = 0.707;
     right_sweep_pose.pose.orientation.z = 0;
     right_sweep_pose.pose.orientation.w = 0;
-    right_sweep_pose.header.stamp = ros::Time::now(); 
+    right_sweep_pose.header.stamp = ros::Time::now();
 
     //left sweep
     geometry_msgs::PoseStamped left_sweep_pose;
     left_sweep_pose.header.frame_id = "torso";
     left_sweep_pose.pose.position.x = 0.6;
-    left_sweep_pose.pose.position.y = 0.25; //-0.35;
+    left_sweep_pose.pose.position.y = 0.25;
     left_sweep_pose.pose.position.z = -0.35;
     left_sweep_pose.pose.orientation.x = 0.507;
     left_sweep_pose.pose.orientation.y = 0.407;
     left_sweep_pose.pose.orientation.z = 0;
     left_sweep_pose.pose.orientation.w = 0;
-    left_sweep_pose.header.stamp = ros::Time::now(); 
+    left_sweep_pose.header.stamp = ros::Time::now();
 
     //make an action client for the manipulation task
     coordinator::ManipTaskGoal manip_goal;
@@ -185,11 +177,12 @@ int main(int argc, char** argv) {
     coordinator::ManipTaskGoal sweep_goal;
     coordinator::ManipTaskGoal lsweep_goal;
 
+    // initiate an action client to send goals of sweep end points
     actionlib::SimpleActionClient<coordinator::ManipTaskAction> manipulation_ac("manip_task_action_service", true);
     ROS_INFO("waiting for manipulation server: ");
     server_exists = false;
     while ((!server_exists)&&(ros::ok())) {
-        server_exists = manipulation_ac.waitForServer(ros::Duration(0.5)); // 
+        server_exists = manipulation_ac.waitForServer(ros::Duration(0.5)); //
         ros::spinOnce();
         ros::Duration(0.5).sleep();
         ROS_INFO("retrying...");
@@ -202,7 +195,7 @@ int main(int argc, char** argv) {
     bool found_cube = false;
     bool found_block = false;
 
-    ROS_INFO("using surface ht = %f",surface_height);     
+    ROS_INFO("using surface ht = %f",surface_height);
     geometry_msgs::PoseStamped cube_pose;
     geometry_msgs::PoseStamped block_pose;
 
@@ -211,7 +204,7 @@ int main(int argc, char** argv) {
 
         ROS_INFO("ready to go to wait pose; enter 1 when you are ready, or 0 to stop: ");
         std::cin>>ans;
-        if (ans == 0) return 0; 
+        if (ans == 0) return 0;
 
         //send arm to waiting pose
         ROS_INFO("sending a goal: move to pre-pose");
@@ -228,23 +221,23 @@ int main(int argc, char** argv) {
 
         ROS_INFO("ready to look for block; enter 1 when you are ready, or 0 to stop: ");
         std::cin>>ans;
-        if (ans == 0) return 0;   
+        if (ans == 0) return 0;
 
         object_finder_goal.object_id=ObjectIdCodes::CUBE_ID;
         ROS_INFO("sending goal to find CUBE: ");
-        object_finder_ac.sendGoal(object_finder_goal,&objectFinderDoneCb); 
+        object_finder_ac.sendGoal(object_finder_goal,&objectFinderDoneCb);
         finished_before_timeout = object_finder_ac.waitForResult(ros::Duration(10.0));
         //bool finished_before_timeout = action_client.waitForResult(); // wait forever...
         if (!finished_before_timeout) {
             ROS_WARN("giving up waiting on result ");
             return 1;
-        }       
-        
+        }
+
         if (g_found_object_code == object_finder::objectFinderResult::OBJECT_FOUND)   {
             ROS_INFO("found cube!");
             cube_pose = g_perceived_object_pose;
             found_cube = true;
-        }    
+        }
          else {
             ROS_WARN("cube not found!:");
         }
@@ -252,19 +245,19 @@ int main(int argc, char** argv) {
         if(!found_cube){
             object_finder_goal.object_id=ObjectIdCodes::TOY_BLOCK_ID;
             ROS_INFO("sending goal to find TOY_BLOCK: ");
-            object_finder_ac.sendGoal(object_finder_goal,&objectFinderDoneCb); 
+            object_finder_ac.sendGoal(object_finder_goal,&objectFinderDoneCb);
             finished_before_timeout = object_finder_ac.waitForResult(ros::Duration(10.0));
             //bool finished_before_timeout = action_client.waitForResult(); // wait forever...
             if (!finished_before_timeout) {
                 ROS_WARN("giving up waiting on result ");
                 return 1;
-            }       
-            
+            }
+
             if (g_found_object_code == object_finder::objectFinderResult::OBJECT_FOUND)   {
                 ROS_INFO("found block!");
                 block_pose = g_perceived_object_pose;
                 found_block = true;
-            }    
+            }
              else {
                 ROS_WARN("block not found!:");
             }
@@ -281,7 +274,6 @@ int main(int argc, char** argv) {
                     << cube_pose.pose.orientation.y << ","
                     << cube_pose.pose.orientation.z << ","
                     << cube_pose.pose.orientation.w << ")" << endl);
-
             //send command to acquire block:
             ROS_INFO("sending a goal: straddle cube");
             g_goal_done = false;
@@ -314,7 +306,6 @@ int main(int argc, char** argv) {
 
         } else if(found_block) {
             //sweep it left
-
             //print some information for debugging
             ROS_INFO_STREAM("block pose w/rt frame-id " << block_pose.header.frame_id << endl);
             ROS_INFO_STREAM("object origin: (x,y,z) = (" << block_pose.pose.position.x << ", " << block_pose.pose.position.y << ", "
@@ -355,11 +346,10 @@ int main(int argc, char** argv) {
             }
 
         } else {
-            //dab
+            // Nothing is on the stool; do nothing.
+            // The terminal should prompt user to enter 1 in order to return back to the waiting pose
         }
-
         found_cube = false;
         found_block = false;
     }
 }
-

@@ -19,7 +19,7 @@ private:
     // here are some message types to communicate with our client(s)
     object_finder::objectFinderGoal goal_; // goal message, received from client
     object_finder::objectFinderResult result_; // put results here, to be sent back to the client when done w/ goal
-    object_finder::objectFinderFeedback feedback_; // not used in this example; 
+    object_finder::objectFinderFeedback feedback_; // not used in this example;
     // would need to use: as_.publishFeedback(feedback_); to send incremental feedback to the client
 
     PclUtils pclUtils_;
@@ -47,11 +47,11 @@ ObjectFinder::ObjectFinder() :
 object_finder_as_(nh_, "object_finder_action_service", boost::bind(&ObjectFinder::executeCB, this, _1), false), pclUtils_(&nh_) {
     ROS_INFO("in constructor of ObjectFinder...");
     // do any other desired initializations here...specific to your implementation
- 
+
     object_finder_as_.start(); //start the server running
     tfListener_ = new tf::TransformListener; //create a transform listener
     found_surface_height_=false;
-    
+
 }
 
 //specialized function: DUMMY...JUST RETURN A HARD-CODED POSE; FIX THIS
@@ -76,11 +76,11 @@ bool ObjectFinder::find_toy_block(float surface_height, geometry_msgs::PoseStamp
     //bool valid_plane;
     Eigen::Vector3f major_axis;
     Eigen::Vector3f centroid;
-    bool found_object = true; //should verify this
-    double block_height = 0.035; //this height is specific to the TOY_BLOCK model
+    bool found_object = true;
+    double block_height = 0.06; //this height is specific to the TOY_BLOCK model
     //if insufficient points in plane, find_plane_fit returns "false"
     //should do more sanity testing on found_object status
-    //hard-coded search bounds based on a block of width 0.035
+    //hard-coded search bounds based on a toy block of height 0.06
     found_object = pclUtils_.find_plane_fit(0.4, 1, -0.5, 0.5, surface_height + 0.05, surface_height + 0.07, 0.001,
             plane_normal, plane_dist, major_axis, centroid);
     //should have put a return value on find_plane_fit;
@@ -97,9 +97,8 @@ bool ObjectFinder::find_toy_block(float surface_height, geometry_msgs::PoseStamp
     object_pose.pose.position.y = centroid(1);
     //the TOY_BLOCK model has its origin in the middle of the block, not the top surface
     //so lower the block model origin by half the block height from upper surface
-    object_pose.pose.position.z = centroid(2)-0.5*block_height;
+    object_pose.pose.position.z = centroid(2)-0.5 * block_height;
     //create R from normal and major axis, then convert R to quaternion
-
     object_pose.pose.orientation.x = quat.x();
     object_pose.pose.orientation.y = quat.y();
     object_pose.pose.orientation.z = quat.z();
@@ -114,10 +113,10 @@ bool ObjectFinder::find_CUBE(float surface_height, geometry_msgs::PoseStamped &o
     Eigen::Vector3f major_axis;
     Eigen::Vector3f centroid;
     bool found_object = true; //should verify this
-    double block_height = 0.035; //this height is specific to the TOY_BLOCK model
+    double cube_height = 0.035; //this height is specific to the CUBE model
     //if insufficient points in plane, find_plane_fit returns "false"
     //should do more sanity testing on found_object status
-    //hard-coded search bounds based on a block of width 0.035
+    //hard-coded search bounds based on a cube of height 0.035
     found_object = pclUtils_.find_plane_fit(0.4, 1, -0.5, 0.5, surface_height + 0.025, surface_height + 0.045, 0.001,
             plane_normal, plane_dist, major_axis, centroid);
     //should have put a return value on find_plane_fit;
@@ -134,9 +133,8 @@ bool ObjectFinder::find_CUBE(float surface_height, geometry_msgs::PoseStamped &o
     object_pose.pose.position.y = centroid(1);
     //the TOY_BLOCK model has its origin in the middle of the block, not the top surface
     //so lower the block model origin by half the block height from upper surface
-    object_pose.pose.position.z = centroid(2)-0.5*block_height;
+    object_pose.pose.position.z = centroid(2)-0.5 * cube_height;
     //create R from normal and major axis, then convert R to quaternion
-
     object_pose.pose.orientation.x = quat.x();
     object_pose.pose.orientation.y = quat.y();
     object_pose.pose.orientation.z = quat.z();
@@ -176,11 +174,11 @@ void ObjectFinder::executeCB(const actionlib::SimpleActionServer<object_finder::
     //get a fresh snapshot:
     pclUtils_.reset_got_kinect_cloud();
     while (!pclUtils_.got_kinect_cloud()) {
-        ros::spinOnce(); //normally, can simply do: ros::spin();  
+        ros::spinOnce(); //normally, can simply do: ros::spin();
         ros::Duration(0.1).sleep();
         ROS_INFO("waiting for snapshot...");
     }
-    
+
     //if here, have a new cloud in *pclKinect_ptr_; transform this cloud to base-frame coords:
     ROS_INFO("transforming point cloud");
     pclUtils_.transform_kinect_cloud(g_affine_kinect_wrt_base);
@@ -259,7 +257,7 @@ void ObjectFinder::executeCB(const actionlib::SimpleActionServer<object_finder::
                 result_.object_pose = object_pose;
                 ROS_INFO("returning height %f",surface_height_);
                 result_.found_object_code = object_finder::objectFinderResult::OBJECT_FOUND;
-                object_finder_as_.setSucceeded(result_);             
+                object_finder_as_.setSucceeded(result_);
             break;
         default:
             ROS_WARN("this object ID is not implemented");
@@ -270,7 +268,7 @@ void ObjectFinder::executeCB(const actionlib::SimpleActionServer<object_finder::
 }
 
 int main(int argc, char** argv) {
-    ros::init(argc, argv, "object_finder_node"); // name this node 
+    ros::init(argc, argv, "object_finder_node"); // name this node
 
     ROS_INFO("instantiating the object finder action server: ");
 
@@ -283,8 +281,8 @@ int main(int argc, char** argv) {
     while (tferr) {
         tferr = false;
         try {
-            //The direction of the transform returned will be from the target_frame to the source_frame. 
-            //Which if applied to data, will transform data in the source_frame into the target_frame. 
+            //The direction of the transform returned will be from the target_frame to the source_frame.
+            //Which if applied to data, will transform data in the source_frame into the target_frame.
             //See tf/CoordinateFrameConventions#Transform_Direction
             tfListener.lookupTransform("base", "camera_rgb_optical_frame", ros::Time(0), stf_kinect_wrt_base);
         } catch (tf::TransformException &exception) {
@@ -305,10 +303,9 @@ int main(int argc, char** argv) {
     ROS_INFO("going into spin");
     // from here, all the work is done in the action server, with the interesting stuff done within "executeCB()"
     while (ros::ok()) {
-        ros::spinOnce(); //normally, can simply do: ros::spin();  
+        ros::spinOnce(); //normally, can simply do: ros::spin();
         ros::Duration(0.1).sleep();
     }
 
     return 0;
 }
-
